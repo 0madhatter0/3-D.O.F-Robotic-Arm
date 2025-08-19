@@ -1,0 +1,152 @@
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
+
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+
+#define SERVOMIN  150
+#define SERVOMAX  600
+
+uint16_t angleToPulse(float angle) {
+  return map((int)angle, 0, 180, SERVOMIN, SERVOMAX);
+}
+
+void setServo(int channel, float angle) {
+  pwm.setPWM(channel, 0, angleToPulse(angle));
+}
+
+void triggerSweep() {
+  Serial.println("Starting sweep sequence...");
+
+  float stepSize = 0.5;
+  int delayMillis = 10;
+
+  // Servo 4: 130 ? 35
+  for (float angle = 130; angle >= 35; angle -= stepSize) {
+    pwm.setPWM(4, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+  delay(800);
+
+  // Servo 5: 0 ? 70
+  for (float angle = 0; angle <= 70; angle += stepSize) {
+    pwm.setPWM(5, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+  delay(800);
+
+  // Servo 1: 50 ? 135
+  for (float angle = 50; angle <= 135; angle += stepSize) {
+    pwm.setPWM(1, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+  delay(800);
+
+  // Servo 2: 0 ? 10
+  for (float angle = 0; angle <= 10; angle += stepSize) {
+    pwm.setPWM(2, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+  delay(800);
+
+  // Servo 5: 70 ? 0
+  for (float angle = 70; angle >= 0; angle -= stepSize) {
+    pwm.setPWM(5, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+  delay(800);
+
+  // Servo 1: 135 ? 100
+  for (float angle = 135; angle >= 100; angle -= stepSize) {
+    pwm.setPWM(1, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+  delay(800);
+
+  // Servo 2: 10 ? 150
+  for (float angle = 10; angle <= 150; angle += stepSize) {
+    pwm.setPWM(2, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+  delay(800);
+
+  // Servo 4: 35 ? 0
+  for (float angle = 35; angle >= 0; angle -= stepSize) {
+    pwm.setPWM(4, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+  delay(800);
+
+  // Servo 5: 0 ? 70
+  for (float angle = 0; angle <= 70; angle += stepSize) {
+    pwm.setPWM(5, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+  delay(1000);
+
+  Serial.println("Returning to initial positions...");
+
+  // Servo 2: 150 ? 0
+  for (float angle = 150; angle >= 0; angle -= stepSize) {
+    pwm.setPWM(2, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+  delay(800);
+
+  // Servo 1: 100 ? 50
+  for (float angle = 100; angle >= 50; angle -= stepSize) {
+    pwm.setPWM(1, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+
+  // Servo 4: 0 ? 130
+  for (float angle = 0; angle <= 130; angle += stepSize) {
+    pwm.setPWM(4, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+  delay(800);
+
+  // Servo 5: 70 ? 0
+  for (float angle = 70; angle >= 0; angle -= stepSize) {
+    pwm.setPWM(5, 0, angleToPulse(angle));
+    delay(delayMillis);
+  }
+
+  delay(1000);
+  Serial.println("Sweep sequence complete.");
+}
+
+void setup() {
+  Serial.begin(9600);
+  pwm.begin();
+  pwm.setPWMFreq(50);
+  delay(1000);
+
+  Serial.println("Initializing servos...");
+
+  // Set initial positions
+  setServo(0, 60);
+  setServo(1, 50);
+  setServo(2, 0);
+  setServo(3, 90);
+  setServo(4, 130);
+  setServo(5, 0);
+}
+
+void loop() {
+  if (Serial.available()) {
+    String input = Serial.readStringUntil('\n');
+    input.trim();
+
+    if (input == "SWEEP") {
+      triggerSweep();
+    } else {
+      // Try to interpret as an angle for servo 0
+      float angle = input.toFloat();
+      if (angle >= 0 && angle <= 180) {
+        setServo(0, angle);
+        Serial.print("Base servo moved to angle: ");
+        Serial.println(angle);
+      }
+    }
+  }
+}

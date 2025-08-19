@@ -1,0 +1,107 @@
+import cv2
+import serial
+import time
+from ultralytics import YOLO
+
+# Initialize model and serial
+model = YOLO('yolov8n.pt')
+ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
+time.sleep(2)
+
+# Zone to servo angle mapping
+zone_angles = {
+    0: 45,
+    1: 50,
+    2: 60,
+    3: 65
+}
+
+cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+
+# Detection state
+detection_count = 0
+last_zone = None
+sweep_triggered = False
+cooldown_start_time = 0
+cooldown_duration = 10  # seconds
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    current_time = time.time()
+
+    # Cooldown check
+    if sweep_triggered and current_time - cooldown_start_time < cooldown_duration:
+        # Still in cooldown, skip detection
+        cv2.imshow("Bottle Detection Zones", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        continue
+    elif sweep_triggered:
+        # Cooldown finished
+        detection_count = 0
+        last_zone = None
+        sweep_triggered = False
+        print("Cooldown complete. Ready to detect again.")
+
+    results = model(frame, verbose=False)[0]
+    bottle_detected = False
+    h, w, _ = frame.shape
+    zone_width = w // 4
+
+    for box in results.boxes:
+        cls = int(box.cls[0])
+        name = model.names[cls]
+
+        if name == "bottle":
+            bottle_detected = True
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            cx = (x1 + x2) // 2
+
+            # Draw box and label
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(frame, f"{name}", (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
+            zone = min(cx // zone_width, 3)
+            angle = zone_angles[zone]
+            ser.write(f"{angle}\n".encode())
+            print(f"Sent angle {angle} for bottle in zone {zone}")
+
+            if last_zone == zone:
+                detection_count += 1
+            else:
+                detection_count = 1
+                last_zone = zone
+
+            print(f"Detection count in zone {zone}: {detection_count}")
+
+            if detection_count >= 5:
+                print(f"Bottle detected 5 times in zone {zone}. Triggering sweep.")
+                ser.write(b"SWEEP\n")
+                sweep_triggered = True
+                cooldown_start_time = time.time()
+                detection_count = 0
+                last_zone = None
+            break
+
+    if not bottle_detected:
+        detection_count = 0
+        last_zone = None
+
+    # Draw zones
+    for i in range(1, 4):
+        cv2.line(frame, (i * zone_width, 0), (i * zone_width, h), (255, 255, 255), 1)
+        cv2.putText(frame, f"Zone {i}", (i * zone_width - 20, 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+
+    cv2.imshow("Bottle Detection Zones", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
