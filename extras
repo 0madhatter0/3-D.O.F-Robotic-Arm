@@ -1,0 +1,5 @@
+Things to note 
+
+the servos must be caliberated properly as the starting angle is 90 degrees except for the claw. 
+The servo caliberation is done through servo software which help in faster caliberation. The batteries capacity should be properly determined
+as the servos require a large amount of power as well as stable voltage source.
