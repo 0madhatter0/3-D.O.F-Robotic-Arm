@@ -1,4 +1,4 @@
-# Description
+# Overview
 
  This project focuses on the development of a 3 Degrees of Freedom (DOF) robotic
  arm with a movable base, designed to enhance flexibility and efficiency in robotic
